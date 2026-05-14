@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>青 or 緑 1/8192</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      margin-top: 60px;
+    }
+
+    button {
+      font-size: 20px;
+      padding: 10px 25px;
+      margin: 10px;
+      cursor: pointer;
+    }
+
+    #blue { background: #4da3ff; }
+    #green { background: #4dff88; }
+
+    #result {
+      margin-top: 30px;
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    #streak {
+      margin-top: 10px;
+      color: gray;
+    }
+  </style>
+</head>
+<body>
+
+  <h1> 青 or 緑で1/8192</h1>
+
+  <button id="blue" onclick="pick('blue')">青</button>
+  <button id="green" onclick="pick('green')">緑</button>
+
+  <div id="result">どっちらか選んで</div>
+  <div id="streak">連続成功：0 / 13</div>
+
+  <script>
+    let streak = 0;
+
+    function pick(choice) {
+      // 1/2判定
+      let random = Math.random() < 0.5 ? "blue" : "green";
+
+      if (choice === random) {
+        streak++;
+        document.getElementById("result").innerText = " 当たり";
+        document.getElementById("result").style.color = "green";
+      } else {
+        streak = 0;
+        document.getElementById("result").innerText = "ハズレ";
+        document.getElementById("result").style.color = "red";
+      }
+
+      document.getElementById("streak").innerText =
+        "連続成功：" + streak + " / 13";
+
+      // 13連続でクリア（=1/8192）
+      if (streak === 13) {
+        document.getElementById("result").innerText = " 1/8192達成！";
+        document.getElementById("result").style.color = "gold";
+      }
+    }
+  </script>
+
+</body>
+</html>
