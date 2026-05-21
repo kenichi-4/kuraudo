@@ -49,10 +49,13 @@
 
       // 役判定
       if (d1 === d2 && d2 === d3) {
-        resultText = "ピンゾロ（最強）";
+        resultText = "ピンゾロ";
       } 
       else if (arr[0] === 1 && arr[1] === 2 && arr[2] === 3) {
-        resultText = "ヒフミ（最弱）";
+        resultText = "ヒフミ";
+      }
+      else if (arr[0] === 4 && arr[1] === 5 && arr[2] === 6) {
+        resultText = "シゴロ";
       }
       else if (d1 === d2 && d2 === d3 && d1 === d3) {
         resultText = "ゾロ目";

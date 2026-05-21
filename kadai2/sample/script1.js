@@ -1,0 +1,9 @@
+﻿today = new Date();
+document.write(today);
+document.write("<h1>ビジュアルコンテンツデザイン</h1>");
+document.write("<p>担当　中村直人</p>");
+document.write("<p>この授業では、Web制作を中心に情報デザインを学びます。これまでに学習してきたことの復習みたいで簡単です。</p>");
+
+var image = new Image(128,128); //image オブジェクトの作成
+image.src = "ganba.png"; //imageのソースの指定
+document.body.appendChild(image); //imageをDOM要素に組み込む
