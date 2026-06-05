@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>チンチロ</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      margin-top: 50px;
+    }
+    .dice {
+      font-size: 40px;
+      margin: 10px;
+    }
+    button {
+      font-size: 20px;
+      padding: 10px 20px;
+      cursor: pointer;
+    }
+    #result {
+      margin-top: 20px;
+      font-size: 24px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>チンチロ</h1>
+
+  <div class="dice" id="dice">- - -</div>
+
+  <button onclick="rollDice()">サイコロを振る</button>
+
+  <div id="result">結果待ち…</div>
+
+  <script>
+    function rollDice() {
+      let d1 = Math.floor(Math.random() * 6) + 1;
+      let d2 = Math.floor(Math.random() * 6) + 1;
+      let d3 = Math.floor(Math.random() * 6) + 1;
+
+      document.getElementById("dice").innerText = `${d1} ${d2} ${d3}`;
+
+      let arr = [d1, d2, d3].sort();
+
+      let resultText = "";
+
+      // 役判定
+      if (d1 === d2 && d2 === d3) {
+        resultText = "ピンゾロ";
+      } 
+      else if (arr[0] === 1 && arr[1] === 2 && arr[2] === 3) {
+        resultText = "ヒフミ";
+      }
+      else if (arr[0] === 4 && arr[1] === 5 && arr[2] === 6) {
+        resultText = "シゴロ";
+      }
+      else if (d1 === d2 && d2 === d3 && d1 === d3) {
+        resultText = "ゾロ目";
+      }
+
+      else if (d1 === d2) {
+        resultText = d3;
+      }
+      else if ( d2 === d3 ) {
+        resultText = d1;
+      }
+        else if (d1 === d3) {
+        resultText = d2;
+      }
+      else {
+        resultText = "役なし";
+      }
+
+      document.getElementById("result").innerText = resultText;
+    }
+  </script>
+
+    <p><a href="index.html">もどる</a></p>
+</body>
+</html>

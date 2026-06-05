@@ -1,0 +1,63 @@
+body {
+  font-family: sans-serif;
+  background: #f4f4f4;
+  text-align: center;
+  margin: 0;
+  padding: 40px 16px;
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+  margin-top: 20px;
+}
+
+input {
+  font-size: 18px;
+  padding: 10px;
+  margin: 8px;
+  width: 180px;
+}
+
+button {
+  font-size: 18px;
+  padding: 10px 18px;
+  margin: 8px;
+  cursor: pointer;
+}
+
+.players {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 24px 0;
+}
+
+.playerCard {
+  border: 2px solid #333;
+  border-radius: 10px;
+  padding: 16px;
+  width: 240px;
+}
+
+.dice {
+  font-size: 36px;
+  margin: 10px 0;
+}
+
+.result {
+  font-size: 22px;
+  font-weight: bold;
+}
+
+.hidden {
+  display: none;
+}

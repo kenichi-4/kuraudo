@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>マルチ対戦チンチロ</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main>
+    <h1>マルチ対戦チンチロ</h1>
+
+    <section id="loginArea" class="card">
+      <h2>部屋に入る</h2>
+      <input id="playerName" type="text" placeholder="名前を入力" />
+      <button id="createBtn">部屋を作る</button>
+
+      <div class="joinBox">
+        <input id="roomIdInput" type="text" placeholder="部屋ID" maxlength="4" />
+        <button id="joinBtn">部屋に参加</button>
+      </div>
+    </section>
+
+    <section id="gameArea" class="card hidden">
+      <p>部屋ID：<strong id="roomIdText"></strong></p>
+      <p id="message">待機中...</p>
+
+      <div id="players" class="players"></div>
+
+      <button id="rollBtn">サイコロを振る</button>
+      <button id="resetBtn" class="hidden">もう一回</button>
+    </section>
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>
