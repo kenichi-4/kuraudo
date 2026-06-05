@@ -14,7 +14,7 @@
     <% } %>
 
     <section>
-      <h2>部屋を作る</h2>
+
       <form action="/create" method="post">
         <input type="text" name="name" placeholder="名前を入力">
         <input type="submit" value="部屋を作る">
@@ -22,15 +22,13 @@
     </section>
 
     <section>
-      <h2>部屋に参加</h2>
+
       <form action="/join" method="post">
-        <input type="text" name="name" placeholder="名前を入力">
         <input type="text" name="roomId" placeholder="部屋ID" maxlength="4" required>
         <input type="submit" value="部屋に参加">
       </form>
     </section>
 
-    <p class="hint">webpro_06の例に近づけるため、GET/POSTとEJSで画面を切り替えます。</p>
   </main>
 </body>
 </html>
