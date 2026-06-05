@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>部屋 <%= room.id %></title>
+  <link rel="stylesheet" href="/public/style.css">
+</head>
+<body>
+  <main class="card">
+    <h1>複数人対戦チンチロ</h1>
+
+    <p>部屋ID：<strong><%= room.id %></strong></p>
+    <p>参加人数：<strong><%= room.players.length %>/<%= maxPlayers %>人</strong></p>
+    <p class="message"><%= room.message %></p>
+
+    <% if (!me) { %>
+      <p class="error">この画面ではプレイヤー情報が確認できません。入り直してください。</p>
+      <p><a href="/">トップへ戻る</a></p>
+    <% } else { %>
+      <p>あなた：<strong><%= me.name %></strong></p>
+
+      <form action="/room/<%= room.id %>/roll" method="post">
+        <input type="hidden" name="playerId" value="<%= playerId %>">
+        <% if (me.result && (me.result.hasRole || me.rollCount >= maxRolls)) { %>
+          <input type="submit" value="このラウンドは確定済み" disabled>
+        <% } else { %>
+          <input type="submit" value="サイコロを振る（<%= me.rollCount %>/<%= maxRolls %>回）">
+        <% } %>
+      </form>
+
+      <form action="/room/<%= room.id %>/reset" method="post">
+        <input type="hidden" name="playerId" value="<%= playerId %>">
+        <input type="submit" value="もう一回">
+      </form>
+    <% } %>
+
+    <div class="players">
+      <% for (const player of room.players) { %>
+        <div class="playerCard">
+          <h3><%= player.name %><%= me && player.id === me.id ? '（自分）' : '' %></h3>
+          <div class="dice"><%= player.dice ? player.dice.join(' ') : '- - -' %></div>
+          <div class="result"><%= player.result ? player.result.name : '結果待ち' %></div>
+          <div class="status">振った回数：<%= player.rollCount %>/<%= maxRolls %>回</div>
+          <% if (player.result && (player.result.hasRole || player.rollCount >= maxRolls)) { %>
+            <div class="status">確定</div>
+          <% } else { %>
+            <div class="status">未確定</div>
+          <% } %>
+        </div>
+      <% } %>
+    </div>
+
+    <% if (room.status === 'finished') { %>
+      <section class="ranking">
+        <h2>結果</h2>
+        <ol>
+          <% for (const player of ranking) { %>
+            <li><%= player.place %>位：<%= player.name %>　<%= player.dice.join(' ') %>　<%= player.result.name %>（<%= player.rollCount %>回）</li>
+          <% } %>
+        </ol>
+      </section>
+    <% } %>
+
+    <p><a href="/">トップへ戻る</a></p>
+  </main>
+</body>
+</html>

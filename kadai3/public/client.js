@@ -47,6 +47,7 @@ socket.on('joinedRoom', (roomId) => {
 });
 
 socket.on('roomUpdate', (room) => {
+  const myId = socket.id;
   roomIdText.textContent = room.roomId;
   message.textContent = room.message;
   playerCountText.textContent = `${room.playerCount}/${room.maxPlayers}人`;
@@ -68,7 +69,7 @@ socket.on('roomUpdate', (room) => {
     }
 
     card.innerHTML = `
-      <h3>${escapeHtml(player.name)}</h3>
+      <h3>${escapeHtml(player.name)}${player.id === myId ? '（自分）' : ''}</h3>
       <div class="dice">${diceText}</div>
       <div class="result">${resultText}</div>
       <div class="status">${statusText}</div>
@@ -78,7 +79,16 @@ socket.on('roomUpdate', (room) => {
     players.appendChild(card);
   });
 
-  rollBtn.disabled = room.status !== 'playing';
+  const me = room.players.find((player) => player.id === myId);
+  rollBtn.disabled = room.status === 'finished' || !me || me.finished;
+
+  if (me && !me.finished) {
+    rollBtn.textContent = `サイコロを振る（${me.rollCount}/${room.maxRolls}回）`;
+  } else {
+    rollBtn.textContent = 'このラウンドは確定済み';
+  }
+
+  const allFinished = room.players.length > 0 && room.players.every((player) => player.finished);
 
   if (room.status === 'finished') {
     resetBtn.classList.remove('hidden');
@@ -91,7 +101,11 @@ socket.on('roomUpdate', (room) => {
       rankingList.appendChild(li);
     });
   } else {
-    resetBtn.classList.add('hidden');
+    if (allFinished) {
+      resetBtn.classList.remove('hidden');
+    } else {
+      resetBtn.classList.add('hidden');
+    }
     rankingArea.classList.add('hidden');
     rankingList.innerHTML = '';
   }

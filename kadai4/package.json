@@ -1,0 +1,14 @@
+{
+  "name": "tinchiro-webpro06-routes",
+  "version": "1.0.0",
+  "description": "webpro_06 style Node.js tinchiro game using Express GET/POST and EJS",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "ejs": "^3.1.10",
+    "express": "^4.18.3"
+  }
+}

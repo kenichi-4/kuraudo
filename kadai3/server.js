@@ -1,27 +1,27 @@
-const express = require('express');
+const express = require('express');     //Webページの表示
 const http = require('http');
-const { Server } = require('socket.io');
+const { Server } = require('socket.io');     //リアルタイム通信
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const PORT = process.env.PORT || 3000;
-const MIN_PLAYERS = 2;
-const MAX_PLAYERS = 8;
-const MAX_ROLLS = 3;
+const PORT = process.env.PORT || 3000;     //ポート番号3000
+const MIN_PLAYERS = 2;     //最小人数
+const MAX_PLAYERS = 8;     //最大人数
+const MAX_ROLLS = 3;     //振り直せる回数
 
 app.use(express.static('public'));
 
-const rooms = {};
+const rooms = {};     //作られた部屋の保存
 
 function makeRoomId() {
   return Math.random().toString(36).substring(2, 6).toUpperCase();
-}
+}     //部屋のID生成
 
 function rollDice() {
   return [1, 2, 3].map(() => Math.floor(Math.random() * 6) + 1);
-}
+}     //サイコロ
 
 function judgeDice(dice) {
   const [d1, d2, d3] = dice;
@@ -48,35 +48,35 @@ function judgeDice(dice) {
   if (d1 === d3) return { name: `${d2}の目`, rank: 3, point: d2, hasRole: true };
 
   return { name: '役なし', rank: 2, point: 0, hasRole: false };
-}
+}     //チンチロの役の判別
 
 function compareResults(a, b) {
   if (a.rank !== b.rank) return b.rank - a.rank;
   if (a.point !== b.point) return b.point - a.point;
   return 0;
-}
+}     //勝敗の判別
 
 function getPlayerNumber(room) {
   room.nextPlayerNumber += 1;
   return room.nextPlayerNumber;
-}
+}     //名前
 
 function isPlayerFinished(player) {
   if (!player.result) return false;
   return player.result.hasRole || player.rollCount >= MAX_ROLLS;
-}
+}     //振り終わりを判別
 
 function updateRoomStatus(room) {
   const playerCount = room.players.length;
   const finishedCount = room.players.filter(isPlayerFinished).length;
 
-  if (playerCount < MIN_PLAYERS) {
-    room.status = 'waiting';
-    room.message = `最低${MIN_PLAYERS}人必要です。参加者を待っています。`;
+  if (playerCount < MIN_PLAYERS && finishedCount !== playerCount) {
+    room.status = 'playing';
+    room.message = `今は${playerCount}人です。練習で振れますが、勝敗表示は最低${MIN_PLAYERS}人必要です。`;
     return;
-  }
+  }     
 
-  if (finishedCount === playerCount) {
+  if (finishedCount === playerCount && playerCount >= MIN_PLAYERS) {
     room.status = 'finished';
     const ranking = makeRanking(room.players);
     const top = ranking[0];
@@ -88,17 +88,23 @@ function updateRoomStatus(room) {
       room.message = `同率1位：${winners.map((p) => p.name).join('、')}！`;
     }
     return;
+  }    
+
+  if (finishedCount === playerCount && playerCount < MIN_PLAYERS) {
+    room.status = 'waiting';
+    room.message = `振り終わりました。勝敗表示は最低${MIN_PLAYERS}人必要です。参加者を待つか、もう一回押してください。`;
+    return;
   }
 
   room.status = 'playing';
   room.message = `確定待ち：${finishedCount}/${playerCount}人（役が出るまで最大${MAX_ROLLS}回）`;
-}
+}     //部屋の状態確認
 
 function makeRanking(players) {
   return [...players]
     .filter((p) => p.result)
     .sort((a, b) => compareResults(a.result, b.result));
-}
+}     //順位の生成
 
 function getPublicRoom(room) {
   const ranking = room.status === 'finished'
@@ -130,14 +136,14 @@ function getPublicRoom(room) {
     ranking,
     message: room.message
   };
-}
+}     //クライアントに送る情報の生成
 
 function sendRoom(roomId) {
   const room = rooms[roomId];
   if (!room) return;
   updateRoomStatus(room);
   io.to(roomId).emit('roomUpdate', getPublicRoom(room));
-}
+}     //部屋にいる全員に送る
 
 function makePlayer(socket, room, playerName) {
   return {
@@ -147,9 +153,10 @@ function makePlayer(socket, room, playerName) {
     result: null,
     rollCount: 0
   };
-}
+}     //新しく参加した人の情報
 
 io.on('connection', (socket) => {
+   //接続処理
   socket.on('createRoom', (playerName) => {
     let roomId = makeRoomId();
     while (rooms[roomId]) roomId = makeRoomId();
@@ -160,7 +167,7 @@ io.on('connection', (socket) => {
       players: [],
       nextPlayerNumber: 0,
       message: `最低${MIN_PLAYERS}人必要です。参加者を待っています。`
-    };
+    };     
 
     const room = rooms[roomId];
     room.players.push(makePlayer(socket, room, playerName));
@@ -169,7 +176,7 @@ io.on('connection', (socket) => {
     socket.data.roomId = roomId;
     socket.emit('joinedRoom', roomId);
     sendRoom(roomId);
-  });
+  });    //
 
   socket.on('joinRoom', ({ roomId, playerName }) => {
     roomId = String(roomId || '').toUpperCase();
@@ -196,22 +203,13 @@ io.on('connection', (socket) => {
     socket.data.roomId = roomId;
     socket.emit('joinedRoom', roomId);
     sendRoom(roomId);
-  });
+  });     //部屋の作成
 
   socket.on('roll', () => {
     const roomId = socket.data.roomId;
     const room = rooms[roomId];
     if (!room) return;
-
-    if (room.players.length < MIN_PLAYERS) {
-      socket.emit('errorMessage', `最低${MIN_PLAYERS}人そろってから振れます。`);
-      return;
-    }
-
-    if (room.status === 'finished') {
-      socket.emit('errorMessage', 'このラウンドは終了しています。「もう一回」を押してください。');
-      return;
-    }
+s
 
     const player = room.players.find((p) => p.id === socket.id);
     if (!player) return;
