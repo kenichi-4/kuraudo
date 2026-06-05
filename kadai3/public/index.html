@@ -19,7 +19,7 @@
         <input id="roomIdInput" type="text" placeholder="部屋ID" maxlength="4" />
         <button id="joinBtn">部屋に参加</button>
       </div>
-      <p class="hint">最低2人、最大8人まで参加できます。</p>
+      <p class="hint">最低2人、最大8人まで参加できます。役が出るまで最大3回振れます。</p>
     </section>
 
     <section id="gameArea" class="card hidden">
@@ -30,6 +30,7 @@
       <div id="players" class="players"></div>
 
       <button id="rollBtn">サイコロを振る</button>
+      <p class="hint">役が出たら確定します。3回振っても役なしなら、そのまま確定します。</p>
       <button id="resetBtn" class="hidden">もう一回</button>
 
       <div id="rankingArea" class="ranking hidden">

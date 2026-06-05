@@ -9,6 +9,7 @@ const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 8;
+const MAX_ROLLS = 3;
 
 app.use(express.static('public'));
 
@@ -27,26 +28,26 @@ function judgeDice(dice) {
   const arr = [...dice].sort((a, b) => a - b);
 
   if (d1 === 1 && d2 === 1 && d3 === 1) {
-    return { name: 'ピンゾロ', rank: 6, point: 1 };
+    return { name: 'ピンゾロ', rank: 6, point: 1, hasRole: true };
   }
 
   if (d1 === d2 && d2 === d3) {
-    return { name: `${d1}のゾロ目`, rank: 5, point: d1 };
+    return { name: `${d1}のゾロ目`, rank: 5, point: d1, hasRole: true };
   }
 
   if (arr[0] === 4 && arr[1] === 5 && arr[2] === 6) {
-    return { name: 'シゴロ', rank: 4, point: 6 };
+    return { name: 'シゴロ', rank: 4, point: 6, hasRole: true };
   }
 
   if (arr[0] === 1 && arr[1] === 2 && arr[2] === 3) {
-    return { name: 'ヒフミ', rank: 1, point: 0 };
+    return { name: 'ヒフミ', rank: 1, point: 0, hasRole: true };
   }
 
-  if (d1 === d2) return { name: `${d3}の目`, rank: 3, point: d3 };
-  if (d2 === d3) return { name: `${d1}の目`, rank: 3, point: d1 };
-  if (d1 === d3) return { name: `${d2}の目`, rank: 3, point: d2 };
+  if (d1 === d2) return { name: `${d3}の目`, rank: 3, point: d3, hasRole: true };
+  if (d2 === d3) return { name: `${d1}の目`, rank: 3, point: d1, hasRole: true };
+  if (d1 === d3) return { name: `${d2}の目`, rank: 3, point: d2, hasRole: true };
 
-  return { name: '役なし', rank: 2, point: 0 };
+  return { name: '役なし', rank: 2, point: 0, hasRole: false };
 }
 
 function compareResults(a, b) {
@@ -60,9 +61,14 @@ function getPlayerNumber(room) {
   return room.nextPlayerNumber;
 }
 
+function isPlayerFinished(player) {
+  if (!player.result) return false;
+  return player.result.hasRole || player.rollCount >= MAX_ROLLS;
+}
+
 function updateRoomStatus(room) {
   const playerCount = room.players.length;
-  const rolledCount = room.players.filter((p) => p.dice).length;
+  const finishedCount = room.players.filter(isPlayerFinished).length;
 
   if (playerCount < MIN_PLAYERS) {
     room.status = 'waiting';
@@ -70,7 +76,7 @@ function updateRoomStatus(room) {
     return;
   }
 
-  if (rolledCount === playerCount) {
+  if (finishedCount === playerCount) {
     room.status = 'finished';
     const ranking = makeRanking(room.players);
     const top = ranking[0];
@@ -85,7 +91,7 @@ function updateRoomStatus(room) {
   }
 
   room.status = 'playing';
-  room.message = `サイコロ待ち：${rolledCount}/${playerCount}人`;
+  room.message = `確定待ち：${finishedCount}/${playerCount}人（役が出るまで最大${MAX_ROLLS}回）`;
 }
 
 function makeRanking(players) {
@@ -101,6 +107,7 @@ function getPublicRoom(room) {
         name: player.name,
         dice: player.dice,
         result: player.result,
+        rollCount: player.rollCount,
         place: index + 1
       }))
     : [];
@@ -110,13 +117,15 @@ function getPublicRoom(room) {
     status: room.status,
     minPlayers: MIN_PLAYERS,
     maxPlayers: MAX_PLAYERS,
+    maxRolls: MAX_ROLLS,
     playerCount: room.players.length,
     players: room.players.map((player) => ({
       id: player.id,
       name: player.name,
       dice: player.dice,
       result: player.result,
-      rolled: Boolean(player.dice)
+      rollCount: player.rollCount,
+      finished: isPlayerFinished(player)
     })),
     ranking,
     message: room.message
@@ -128,6 +137,16 @@ function sendRoom(roomId) {
   if (!room) return;
   updateRoomStatus(room);
   io.to(roomId).emit('roomUpdate', getPublicRoom(room));
+}
+
+function makePlayer(socket, room, playerName) {
+  return {
+    id: socket.id,
+    name: playerName || `プレイヤー${getPlayerNumber(room)}`,
+    dice: null,
+    result: null,
+    rollCount: 0
+  };
 }
 
 io.on('connection', (socket) => {
@@ -144,12 +163,7 @@ io.on('connection', (socket) => {
     };
 
     const room = rooms[roomId];
-    room.players.push({
-      id: socket.id,
-      name: playerName || `プレイヤー${getPlayerNumber(room)}`,
-      dice: null,
-      result: null
-    });
+    room.players.push(makePlayer(socket, room, playerName));
 
     socket.join(roomId);
     socket.data.roomId = roomId;
@@ -176,12 +190,7 @@ io.on('connection', (socket) => {
       return;
     }
 
-    room.players.push({
-      id: socket.id,
-      name: playerName || `プレイヤー${getPlayerNumber(room)}`,
-      dice: null,
-      result: null
-    });
+    room.players.push(makePlayer(socket, room, playerName));
 
     socket.join(roomId);
     socket.data.roomId = roomId;
@@ -207,13 +216,20 @@ io.on('connection', (socket) => {
     const player = room.players.find((p) => p.id === socket.id);
     if (!player) return;
 
-    if (player.dice) {
-      socket.emit('errorMessage', 'このラウンドではもう振っています。');
+    if (isPlayerFinished(player)) {
+      socket.emit('errorMessage', 'このラウンドではもう確定しています。');
+      return;
+    }
+
+    if (player.rollCount >= MAX_ROLLS) {
+      socket.emit('errorMessage', `最大${MAX_ROLLS}回までです。`);
       return;
     }
 
     player.dice = rollDice();
     player.result = judgeDice(player.dice);
+    player.rollCount += 1;
+
     sendRoom(roomId);
   });
 
@@ -225,6 +241,7 @@ io.on('connection', (socket) => {
     room.players.forEach((p) => {
       p.dice = null;
       p.result = null;
+      p.rollCount = 0;
     });
 
     sendRoom(roomId);
@@ -245,6 +262,7 @@ io.on('connection', (socket) => {
     room.players.forEach((p) => {
       p.dice = null;
       p.result = null;
+      p.rollCount = 0;
     });
 
     sendRoom(roomId);

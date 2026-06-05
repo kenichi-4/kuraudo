@@ -59,13 +59,20 @@ socket.on('roomUpdate', (room) => {
 
     const diceText = player.dice ? player.dice.join(' ') : '- - -';
     const resultText = player.result ? player.result.name : '結果待ち';
-    const rolledText = player.rolled ? '振り終わり' : 'まだ';
+    const rollCountText = `${player.rollCount}/${room.maxRolls}回`;
+    let statusText = 'まだ';
+    if (player.finished) {
+      statusText = '確定';
+    } else if (player.rollCount > 0) {
+      statusText = 'もう一回振れます';
+    }
 
     card.innerHTML = `
       <h3>${escapeHtml(player.name)}</h3>
       <div class="dice">${diceText}</div>
       <div class="result">${resultText}</div>
-      <div class="status">${rolledText}</div>
+      <div class="status">${statusText}</div>
+      <div class="status">振った回数：${rollCountText}</div>
     `;
 
     players.appendChild(card);
@@ -80,7 +87,7 @@ socket.on('roomUpdate', (room) => {
 
     room.ranking.forEach((player) => {
       const li = document.createElement('li');
-      li.textContent = `${player.place}位：${player.name}　${player.dice.join(' ')}　${player.result.name}`;
+      li.textContent = `${player.place}位：${player.name}　${player.dice.join(' ')}　${player.result.name}（${player.rollCount}回）`;
       rankingList.appendChild(li);
     });
   } else {
