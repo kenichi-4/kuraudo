@@ -7,7 +7,7 @@ body {
 }
 
 main {
-  max-width: 720px;
+  max-width: 900px;
   margin: 0 auto;
 }
 
@@ -33,6 +33,15 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.hint {
+  color: #555;
+}
+
 .players {
   display: flex;
   gap: 16px;
@@ -45,7 +54,8 @@ button {
   border: 2px solid #333;
   border-radius: 10px;
   padding: 16px;
-  width: 240px;
+  width: 210px;
+  background: #fff;
 }
 
 .dice {
@@ -56,6 +66,22 @@ button {
 .result {
   font-size: 22px;
   font-weight: bold;
+}
+
+.status {
+  margin-top: 8px;
+  color: #555;
+}
+
+.ranking {
+  margin-top: 24px;
+  text-align: left;
+  display: inline-block;
+}
+
+.ranking li {
+  font-size: 20px;
+  margin: 8px 0;
 }
 
 .hidden {

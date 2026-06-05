@@ -7,6 +7,8 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
+const MIN_PLAYERS = 2;
+const MAX_PLAYERS = 8;
 
 app.use(express.static('public'));
 
@@ -40,35 +42,83 @@ function judgeDice(dice) {
     return { name: 'ヒフミ', rank: 1, point: 0 };
   }
 
-  if (d1 === d2) {
-    return { name: `${d3}の目`, rank: 3, point: d3 };
-  }
-  if (d2 === d3) {
-    return { name: `${d1}の目`, rank: 3, point: d1 };
-  }
-  if (d1 === d3) {
-    return { name: `${d2}の目`, rank: 3, point: d2 };
-  }
+  if (d1 === d2) return { name: `${d3}の目`, rank: 3, point: d3 };
+  if (d2 === d3) return { name: `${d1}の目`, rank: 3, point: d1 };
+  if (d1 === d3) return { name: `${d2}の目`, rank: 3, point: d2 };
 
   return { name: '役なし', rank: 2, point: 0 };
 }
 
 function compareResults(a, b) {
-  if (a.rank !== b.rank) return a.rank > b.rank ? 1 : -1;
-  if (a.point !== b.point) return a.point > b.point ? 1 : -1;
+  if (a.rank !== b.rank) return b.rank - a.rank;
+  if (a.point !== b.point) return b.point - a.point;
   return 0;
 }
 
+function getPlayerNumber(room) {
+  room.nextPlayerNumber += 1;
+  return room.nextPlayerNumber;
+}
+
+function updateRoomStatus(room) {
+  const playerCount = room.players.length;
+  const rolledCount = room.players.filter((p) => p.dice).length;
+
+  if (playerCount < MIN_PLAYERS) {
+    room.status = 'waiting';
+    room.message = `最低${MIN_PLAYERS}人必要です。参加者を待っています。`;
+    return;
+  }
+
+  if (rolledCount === playerCount) {
+    room.status = 'finished';
+    const ranking = makeRanking(room.players);
+    const top = ranking[0];
+    const winners = ranking.filter((p) => compareResults(p.result, top.result) === 0);
+
+    if (winners.length === 1) {
+      room.message = `勝者は ${winners[0].name} です！`;
+    } else {
+      room.message = `同率1位：${winners.map((p) => p.name).join('、')}！`;
+    }
+    return;
+  }
+
+  room.status = 'playing';
+  room.message = `サイコロ待ち：${rolledCount}/${playerCount}人`;
+}
+
+function makeRanking(players) {
+  return [...players]
+    .filter((p) => p.result)
+    .sort((a, b) => compareResults(a.result, b.result));
+}
+
 function getPublicRoom(room) {
+  const ranking = room.status === 'finished'
+    ? makeRanking(room.players).map((player, index) => ({
+        id: player.id,
+        name: player.name,
+        dice: player.dice,
+        result: player.result,
+        place: index + 1
+      }))
+    : [];
+
   return {
     roomId: room.roomId,
     status: room.status,
+    minPlayers: MIN_PLAYERS,
+    maxPlayers: MAX_PLAYERS,
+    playerCount: room.players.length,
     players: room.players.map((player) => ({
       id: player.id,
       name: player.name,
       dice: player.dice,
-      result: player.result
+      result: player.result,
+      rolled: Boolean(player.dice)
     })),
+    ranking,
     message: room.message
   };
 }
@@ -76,6 +126,7 @@ function getPublicRoom(room) {
 function sendRoom(roomId) {
   const room = rooms[roomId];
   if (!room) return;
+  updateRoomStatus(room);
   io.to(roomId).emit('roomUpdate', getPublicRoom(room));
 }
 
@@ -87,16 +138,18 @@ io.on('connection', (socket) => {
     rooms[roomId] = {
       roomId,
       status: 'waiting',
-      players: [
-        {
-          id: socket.id,
-          name: playerName || 'プレイヤー1',
-          dice: null,
-          result: null
-        }
-      ],
-      message: '相手の参加を待っています。'
+      players: [],
+      nextPlayerNumber: 0,
+      message: `最低${MIN_PLAYERS}人必要です。参加者を待っています。`
     };
+
+    const room = rooms[roomId];
+    room.players.push({
+      id: socket.id,
+      name: playerName || `プレイヤー${getPlayerNumber(room)}`,
+      dice: null,
+      result: null
+    });
 
     socket.join(roomId);
     socket.data.roomId = roomId;
@@ -113,19 +166,22 @@ io.on('connection', (socket) => {
       return;
     }
 
-    if (room.players.length >= 2) {
-      socket.emit('errorMessage', 'この部屋は満員です。');
+    if (room.players.length >= MAX_PLAYERS) {
+      socket.emit('errorMessage', `この部屋は満員です。最大${MAX_PLAYERS}人までです。`);
+      return;
+    }
+
+    if (room.players.some((p) => p.id === socket.id)) {
+      socket.emit('errorMessage', 'すでにこの部屋に参加しています。');
       return;
     }
 
     room.players.push({
       id: socket.id,
-      name: playerName || 'プレイヤー2',
+      name: playerName || `プレイヤー${getPlayerNumber(room)}`,
       dice: null,
       result: null
     });
-    room.status = 'playing';
-    room.message = '2人そろいました。サイコロを振ってください。';
 
     socket.join(roomId);
     socket.data.roomId = roomId;
@@ -138,6 +194,16 @@ io.on('connection', (socket) => {
     const room = rooms[roomId];
     if (!room) return;
 
+    if (room.players.length < MIN_PLAYERS) {
+      socket.emit('errorMessage', `最低${MIN_PLAYERS}人そろってから振れます。`);
+      return;
+    }
+
+    if (room.status === 'finished') {
+      socket.emit('errorMessage', 'このラウンドは終了しています。「もう一回」を押してください。');
+      return;
+    }
+
     const player = room.players.find((p) => p.id === socket.id);
     if (!player) return;
 
@@ -148,22 +214,6 @@ io.on('connection', (socket) => {
 
     player.dice = rollDice();
     player.result = judgeDice(player.dice);
-    room.message = `${player.name} がサイコロを振りました。`;
-
-    if (room.players.length === 2 && room.players.every((p) => p.dice)) {
-      const [p1, p2] = room.players;
-      const result = compareResults(p1.result, p2.result);
-      room.status = 'finished';
-
-      if (result === 1) {
-        room.message = `${p1.name} の勝ち！`;
-      } else if (result === -1) {
-        room.message = `${p2.name} の勝ち！`;
-      } else {
-        room.message = '引き分け！';
-      }
-    }
-
     sendRoom(roomId);
   });
 
@@ -176,8 +226,7 @@ io.on('connection', (socket) => {
       p.dice = null;
       p.result = null;
     });
-    room.status = room.players.length === 2 ? 'playing' : 'waiting';
-    room.message = '次のラウンドです。サイコロを振ってください。';
+
     sendRoom(roomId);
   });
 
@@ -193,12 +242,11 @@ io.on('connection', (socket) => {
       return;
     }
 
-    room.status = 'waiting';
     room.players.forEach((p) => {
       p.dice = null;
       p.result = null;
     });
-    room.message = '相手が退出しました。新しい相手を待っています。';
+
     sendRoom(roomId);
   });
 });
