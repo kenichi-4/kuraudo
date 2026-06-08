@@ -2,42 +2,38 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>部屋 <%= room.id %></title>
+  <title>CPU対戦チンチロ</title>
   <link rel="stylesheet" href="/public/style.css">
 </head>
 <body>
   <main class="card">
-    <h1>複数人対戦チンチロ</h1>
+    <h1>CPU対戦チンチロ</h1>
 
-    <p>部屋ID：<strong><%= room.id %></strong></p>
-    <p>参加人数：<strong><%= room.players.length %>/<%= maxPlayers %>人</strong></p>
-    <p class="message"><%= room.message %></p>
+    <p class="message"><%= game.message %></p>
+    <p>あなた：<strong><%= me.name %></strong></p>
 
-    <% if (!me) { %>
-      <p class="error">この画面ではプレイヤー情報が確認できません。入り直してください。</p>
-      <p><a href="/">トップへ戻る</a></p>
-    <% } else { %>
-      <p>あなた：<strong><%= me.name %></strong></p>
+    <form class="rollForm" data-target="player" action="/game/<%= game.id %>/roll" method="post">
+      <% if (me.result && (me.result.hasRole || me.rollCount >= maxRolls)) { %>
+        <input type="submit" value="このラウンドは確定済み" disabled>
+      <% } else { %>
+        <input type="submit" value="サイコロを振る（<%= me.rollCount %>/<%= maxRolls %>回）">
+      <% } %>
+    </form>
 
-      <form action="/room/<%= room.id %>/roll" method="post">
-        <input type="hidden" name="playerId" value="<%= playerId %>">
-        <% if (me.result && (me.result.hasRole || me.rollCount >= maxRolls)) { %>
-          <input type="submit" value="このラウンドは確定済み" disabled>
-        <% } else { %>
-          <input type="submit" value="サイコロを振る（<%= me.rollCount %>/<%= maxRolls %>回）">
-        <% } %>
-      </form>
-
-      <form action="/room/<%= room.id %>/reset" method="post">
-        <input type="hidden" name="playerId" value="<%= playerId %>">
-        <input type="submit" value="もう一回">
+    <% if (game.status === 'cpu') { %>
+      <form class="rollForm" data-target="cpu" action="/game/<%= game.id %>/cpu-roll" method="post">
+        <input type="submit" value="CPUのサイコロを振る">
       </form>
     <% } %>
 
+    <form action="/game/<%= game.id %>/reset" method="post">
+      <input type="submit" value="もう一回">
+    </form>
+
     <div class="players">
-      <% for (const player of room.players) { %>
-        <div class="playerCard">
-          <h3><%= player.name %><%= me && player.id === me.id ? '（自分）' : '' %></h3>
+      <% for (const player of game.players) { %>
+        <div class="playerCard" data-player="<%= player.id %>">
+          <h3><%= player.name %><%= player.isCpu ? '' : '（自分）' %></h3>
           <div class="dice"><%= player.dice ? player.dice.join(' ') : '- - -' %></div>
           <div class="result"><%= player.result ? player.result.name : '結果待ち' %></div>
           <div class="status">振った回数：<%= player.rollCount %>/<%= maxRolls %>回</div>
@@ -50,7 +46,7 @@
       <% } %>
     </div>
 
-    <% if (room.status === 'finished') { %>
+    <% if (game.status === 'finished') { %>
       <section class="ranking">
         <h2>結果</h2>
         <ol>
@@ -61,7 +57,10 @@
       </section>
     <% } %>
 
-    <p><a href="/">トップへ戻る</a></p>
+    <form action="/game/<%= game.id %>/end" method="post">
+      <button type="submit">トップへ戻る</button>
+    </form>
   </main>
+  <script src="/public/client.js"></script>
 </body>
 </html>

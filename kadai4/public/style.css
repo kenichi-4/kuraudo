@@ -19,17 +19,26 @@ section {
   margin: 24px 0;
 }
 
-input {
+input, button {
   font-size: 18px;
   padding: 10px;
   margin: 8px;
 }
 
-input[type="submit"] {
+input[type="submit"], button {
   cursor: pointer;
 }
 
+input[type="radio"] {
+  margin: 0 4px 0 0;
+}
+
 input[type="submit"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -47,6 +56,21 @@ input[type="submit"]:disabled {
   font-weight: bold;
 }
 
+.difficulty {
+  margin: 12px 0;
+}
+
+.difficulty p {
+  font-weight: bold;
+  margin: 8px 0;
+}
+
+.difficulty label {
+  display: inline-block;
+  font-size: 18px;
+  margin: 8px 10px;
+}
+
 .players {
   display: flex;
   justify-content: center;
@@ -61,11 +85,19 @@ input[type="submit"]:disabled {
   background: #fff;
   width: 210px;
   padding: 16px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.playerCard.rolling {
+  animation: shake 0.18s infinite;
+  box-shadow: 0 0 18px rgba(0, 0, 0, 0.18);
 }
 
 .dice {
   font-size: 36px;
   margin: 10px 0;
+  letter-spacing: 4px;
+  min-height: 44px;
 }
 
 .result {
@@ -81,4 +113,22 @@ input[type="submit"]:disabled {
 .ranking li {
   font-size: 20px;
   margin: 8px 0;
+}
+
+@keyframes shake {
+  0% {
+    transform: translateX(0) rotate(0deg);
+  }
+  25% {
+    transform: translateX(-5px) rotate(-2deg);
+  }
+  50% {
+    transform: translateX(4px) rotate(2deg);
+  }
+  75% {
+    transform: translateX(-3px) rotate(-1deg);
+  }
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
 }

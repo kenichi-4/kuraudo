@@ -2,12 +2,12 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>複数人対戦チンチロ</title>
+  <title>CPU対戦チンチロ</title>
   <link rel="stylesheet" href="/public/style.css">
 </head>
 <body>
   <main class="card">
-    <h1>複数人対戦チンチロ</h1>
+    <h1>CPU対戦チンチロ</h1>
 
     <% if (error) { %>
       <p class="error"><%= error %></p>
@@ -15,17 +15,24 @@
 
     <section>
 
-      <form action="/create" method="post">
+      <form action="/start" method="post">
         <input type="text" name="name" placeholder="名前を入力">
-        <input type="submit" value="部屋を作る">
-      </form>
-    </section>
-
-    <section>
-
-      <form action="/join" method="post">
-        <input type="text" name="roomId" placeholder="部屋ID" maxlength="4" required>
-        <input type="submit" value="部屋に参加">
+        <div class="difficulty">
+          <p>CPUの強さ</p>
+          <label>
+            <input type="radio" name="difficulty" value="strong">
+            強い
+          </label>
+          <label>
+            <input type="radio" name="difficulty" value="normal" checked>
+            普通
+          </label>
+          <label>
+            <input type="radio" name="difficulty" value="weak">
+            弱い
+          </label>
+        </div>
+        <input type="submit" value="CPUと対戦する">
       </form>
     </section>
 

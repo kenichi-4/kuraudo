@@ -5,269 +5,236 @@ app.set("view engine", "ejs");
 app.use("/public", express.static(__dirname + "/public"));
 app.use(express.urlencoded({ extended: true }));
 
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 8080; // ポート番号8080
+const MAX_ROLLS = 3; // 振り直し回数
+const DIFFICULTIES = {
+  strong: { name: "強い", min: 4, max: 6 },
+  normal: { name: "普通", min: 1, max: 6 },
+  weak: { name: "弱い", min: 1, max: 3 }
+};
 
-const MIN_PLAYERS = 2;
-const MAX_PLAYERS = 8;
-const MAX_ROLLS = 3;
+let games = {}; // 作成されたCPU対戦の情報を保存する
 
-let rooms = {};
-
-// 最初のページ
-app.get("/", (req, res) => {
-  res.render("index", { error: "" });
-});
-
-// 部屋を作る
-app.post("/create", (req, res) => {
-  const name = req.body.name || "プレイヤー1";
-
-  let roomId = Math.random().toString(36).substring(2, 6).toUpperCase();
-
-  while (rooms[roomId]) {
-    roomId = Math.random().toString(36).substring(2, 6).toUpperCase();
-  }
-
-  const playerId = Math.random().toString(36).substring(2, 10);
-
-  rooms[roomId] = {
-    id: roomId,
-    players: [
-      {
-        id: playerId,
-        name: name,
-        dice: null,
-        result: null,
-        rollCount: 0
-      }
-    ],
-    status: "playing",
-    message: "参加者を待っています。"
-  };
-
-  res.redirect("/room/" + roomId + "?playerId=" + playerId);
-});
-
-// 部屋に参加する
-app.post("/join", (req, res) => {
-  const name = req.body.name || "プレイヤー";
-  const roomId = req.body.roomId.toUpperCase();
-
-  const room = rooms[roomId];
-
-  if (!room) {
-    res.render("index", { error: "その部屋はありません。" });
-    return;
-  }
-
-  if (room.players.length >= MAX_PLAYERS) {
-    res.render("index", { error: "この部屋は満員です。" });
-    return;
-  }
-
-  const playerId = Math.random().toString(36).substring(2, 10);
-
-  room.players.push({
-    id: playerId,
+function createPlayer(id, name, isCpu, difficulty) {
+  return {
+    id: id,
     name: name,
+    isCpu: isCpu,
+    difficulty: difficulty || "normal",
     dice: null,
     result: null,
     rollCount: 0
-  });
+  };
+}
 
-  res.redirect("/room/" + roomId + "?playerId=" + playerId);
-});
+function rollDice() {
+  return rollDiceInRange(1, 6);
+}
 
-// 部屋画面を表示
-app.get("/room/:roomId", (req, res) => {
-  const roomId = req.params.roomId;
-  const playerId = req.query.playerId;
+function rollDiceInRange(min, max) {
+  return [
+    randomNumber(min, max),
+    randomNumber(min, max),
+    randomNumber(min, max)
+  ];
+}
 
-  const room = rooms[roomId];
+function randomNumber(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
-  if (!room) {
-    res.send("部屋が見つかりません。");
-    return;
+function judgeDice(dice) {
+  const d1 = dice[0];
+  const d2 = dice[1];
+  const d3 = dice[2];
+  const arr = dice.slice().sort((a, b) => a - b);
+
+  if (d1 === 1 && d2 === 1 && d3 === 1) {
+    return { name: "ピンゾロ", rank: 6, point: 1, hasRole: true };
+  } else if (d1 === d2 && d2 === d3) {
+    return { name: d1 + "のゾロ目", rank: 5, point: d1, hasRole: true };
+  } else if (arr[0] === 4 && arr[1] === 5 && arr[2] === 6) {
+    return { name: "シゴロ", rank: 4, point: 6, hasRole: true };
+  } else if (arr[0] === 1 && arr[1] === 2 && arr[2] === 3) {
+    return { name: "ヒフミ", rank: 1, point: 0, hasRole: true };
+  } else if (d1 === d2) {
+    return { name: d3 + "の目", rank: 3, point: d3, hasRole: true };
+  } else if (d2 === d3) {
+    return { name: d1 + "の目", rank: 3, point: d1, hasRole: true };
+  } else if (d1 === d3) {
+    return { name: d2 + "の目", rank: 3, point: d2, hasRole: true };
   }
 
-  const me = room.players.find((p) => p.id === playerId);
+  return { name: "役なし", rank: 2, point: 0, hasRole: false };
+}
 
-  if (!me) {
-    res.send("プレイヤーが見つかりません。");
-    return;
-  }
+function isFinished(player) {
+  return player.result && (player.result.hasRole || player.rollCount >= MAX_ROLLS);
+}
 
-  let finishedCount = 0;
-
-  for (const player of room.players) {
-    if (player.result) {
-      if (player.result.hasRole || player.rollCount >= MAX_ROLLS) {
-        finishedCount++;
-      }
-    }
-  }
-
-  if (room.players.length < MIN_PLAYERS) {
-    room.message = "現在" + room.players.length + "人です。最低2人から対戦できます。";
-    room.status = "playing";
-  } else if (finishedCount === room.players.length) {
-    room.status = "finished";
-
-    const ranking = room.players
-      .filter((p) => p.result)
-      .sort((a, b) => {
-        if (a.result.rank !== b.result.rank) {
-          return b.result.rank - a.result.rank;
-        }
-        return b.result.point - a.result.point;
-      });
-
-    room.message = "勝者は " + ranking[0].name + " です。";
+function rollOnce(player) {
+  if (player.isCpu) {
+    const difficulty = DIFFICULTIES[player.difficulty] || DIFFICULTIES.normal;
+    player.dice = rollDiceInRange(difficulty.min, difficulty.max);
   } else {
-    room.status = "playing";
-    room.message = "確定待ち：" + finishedCount + "/" + room.players.length + "人";
+    player.dice = rollDice();
   }
 
-  const ranking = room.players
-    .filter((p) => p.result)
+  player.rollCount++;
+  player.result = judgeDice(player.dice);
+}
+
+function getRanking(players) {
+  return players
+    .filter((player) => player.result)
     .sort((a, b) => {
       if (a.result.rank !== b.result.rank) {
         return b.result.rank - a.result.rank;
       }
       return b.result.point - a.result.point;
-    });
+    })
+    .map((player, index) => ({
+      ...player,
+      place: index + 1
+    }));
+}
+
+function updateGameStatus(game) {
+  const player = game.players[0];
+  const cpu = game.players[1];
+
+  if (isFinished(player) && isFinished(cpu)) {
+    const ranking = getRanking(game.players);
+    game.status = "finished";
+
+    if (ranking[0].result.rank === ranking[1].result.rank && ranking[0].result.point === ranking[1].result.point) {
+      game.message = "引き分けです。";
+    } else {
+      game.message = "勝者は " + ranking[0].name + " です。";
+    }
+  } else if (isFinished(player)) {
+    game.status = "cpu";
+    game.message = "あなたの結果が確定しました。次はCPUの番です。";
+  } else {
+    game.status = "player";
+    game.message = "あなたの番です。役が出るか3回振ると確定します。";
+  }
+}
+
+// 最初のページ
+app.get("/", (req, res) => {
+  res.render("index", { error: "", difficulties: DIFFICULTIES });
+});
+
+// CPU対戦を始める
+app.post("/start", (req, res) => {
+  const name = req.body.name || "プレイヤー";
+  const difficulty = DIFFICULTIES[req.body.difficulty] ? req.body.difficulty : "normal";
+  let gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+  while (games[gameId]) {
+    gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+  }
+
+  games[gameId] = {
+    id: gameId,
+    status: "player",
+    message: "あなたの番です。サイコロを振ってください。",
+    players: [
+      createPlayer("player", name, false),
+      createPlayer("cpu", "CPU（" + DIFFICULTIES[difficulty].name + "）", true, difficulty)
+    ]
+  };
+
+  res.redirect("/game/" + gameId);
+});
+
+// 対戦画面を表示
+app.get("/game/:gameId", (req, res) => {
+  const game = games[req.params.gameId];
+
+  if (!game) {
+    res.render("index", { error: "対戦データがありません。もう一度始めてください。", difficulties: DIFFICULTIES });
+    return;
+  }
+
+  updateGameStatus(game);
 
   res.render("room", {
-    room: room,
-    me: me,
-    playerId: playerId,
+    game: game,
+    me: game.players[0],
     maxRolls: MAX_ROLLS,
-    maxPlayers: MAX_PLAYERS,
-    ranking: ranking
+    ranking: getRanking(game.players)
   });
 });
 
 // サイコロを振る
-app.post("/room/:roomId/roll", (req, res) => {
-  const roomId = req.params.roomId;
-  const playerId = req.body.playerId;
+app.post("/game/:gameId/roll", (req, res) => {
+  const game = games[req.params.gameId];
 
-  const room = rooms[roomId];
-
-  if (!room) {
-    res.send("部屋が見つかりません。");
+  if (!game) {
+    res.redirect("/");
     return;
   }
 
-  const player = room.players.find((p) => p.id === playerId);
+  const player = game.players[0];
 
-  if (!player) {
-    res.send("プレイヤーが見つかりません。");
+  if (!isFinished(player)) {
+    rollOnce(player);
+  }
+
+  updateGameStatus(game);
+  res.redirect("/game/" + game.id);
+});
+
+// CPUのサイコロを振る
+app.post("/game/:gameId/cpu-roll", (req, res) => {
+  const game = games[req.params.gameId];
+
+  if (!game) {
+    res.redirect("/");
     return;
   }
 
-  if (player.result) {
-    if (player.result.hasRole || player.rollCount >= MAX_ROLLS) {
-      res.redirect("/room/" + roomId + "?playerId=" + playerId);
-      return;
-    }
+  const player = game.players[0];
+  const cpu = game.players[1];
+
+  if (isFinished(player) && !isFinished(cpu)) {
+    rollOnce(cpu);
   }
 
-  const d1 = Math.floor(Math.random() * 6) + 1;
-  const d2 = Math.floor(Math.random() * 6) + 1;
-  const d3 = Math.floor(Math.random() * 6) + 1;
-
-  player.dice = [d1, d2, d3];
-  player.rollCount++;
-
-  const arr = [d1, d2, d3].sort((a, b) => a - b);
-
-  if (d1 === 1 && d2 === 1 && d3 === 1) {
-    player.result = {
-      name: "ピンゾロ",
-      rank: 6,
-      point: 1,
-      hasRole: true
-    };
-  } else if (d1 === d2 && d2 === d3) {
-    player.result = {
-      name: d1 + "のゾロ目",
-      rank: 5,
-      point: d1,
-      hasRole: true
-    };
-  } else if (arr[0] === 4 && arr[1] === 5 && arr[2] === 6) {
-    player.result = {
-      name: "シゴロ",
-      rank: 4,
-      point: 6,
-      hasRole: true
-    };
-  } else if (arr[0] === 1 && arr[1] === 2 && arr[2] === 3) {
-    player.result = {
-      name: "ヒフミ",
-      rank: 1,
-      point: 0,
-      hasRole: true
-    };
-  } else if (d1 === d2) {
-    player.result = {
-      name: d3 + "の目",
-      rank: 3,
-      point: d3,
-      hasRole: true
-    };
-  } else if (d2 === d3) {
-    player.result = {
-      name: d1 + "の目",
-      rank: 3,
-      point: d1,
-      hasRole: true
-    };
-  } else if (d1 === d3) {
-    player.result = {
-      name: d2 + "の目",
-      rank: 3,
-      point: d2,
-      hasRole: true
-    };
-  } else {
-    player.result = {
-      name: "役なし",
-      rank: 2,
-      point: 0,
-      hasRole: false
-    };
-  }
-
-  res.redirect("/room/" + roomId + "?playerId=" + playerId);
+  updateGameStatus(game);
+  res.redirect("/game/" + game.id);
 });
 
 // もう一回
-app.post("/room/:roomId/reset", (req, res) => {
-  const roomId = req.params.roomId;
-  const playerId = req.body.playerId;
+app.post("/game/:gameId/reset", (req, res) => {
+  const game = games[req.params.gameId];
 
-  const room = rooms[roomId];
-
-  if (!room) {
-    res.send("部屋が見つかりません。");
+  if (!game) {
+    res.redirect("/");
     return;
   }
 
-  for (const player of room.players) {
+  for (const player of game.players) {
     player.dice = null;
     player.result = null;
     player.rollCount = 0;
   }
 
-  room.status = "playing";
-  room.message = "新しいラウンドを開始しました。";
+  game.status = "player";
+  game.message = "新しいラウンドを開始しました。あなたの番です。";
 
-  res.redirect("/room/" + roomId + "?playerId=" + playerId);
+  res.redirect("/game/" + game.id);
+});
+
+// 対戦をやめる
+app.post("/game/:gameId/end", (req, res) => {
+  delete games[req.params.gameId];
+  res.redirect("/");
 });
 
 // サーバー起動
-app.listen(PORT, () => {
+app.listen(PORT, "127.0.0.1", () => {
   console.log("Server running on http://localhost:" + PORT);
 });
