@@ -71,7 +71,7 @@
         <% } %>
         <ol>
           <% for (const player of ranking) { %>
-            <li><%= player.place %>位：<%= player.name %>　<%= player.dice.join(' ') %>　<%= player.result.name %>（<%= player.rollCount %>回）</li>
+            <li><%= player.place %>位：<%= player.name %>　<%= player.dice.join(' ') %>　<%= player.result.name %></li>
           <% } %>
         </ol>
       </section>

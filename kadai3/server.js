@@ -113,10 +113,7 @@ function getRoundWinner(players) {
     return null;
   }
 
-  if (
-    ranking[0].result.rank === ranking[1].result.rank &&
-    ranking[0].result.point === ranking[1].result.point
-  ) {
+  if (ranking[0].result.rank === ranking[1].result.rank && ranking[0].result.point === ranking[1].result.point) {
     return null;
   }
 
@@ -157,7 +154,14 @@ function scoreRound(game) {
     point *= 2;
   }
 
-  winner.score += point;
+  // getRankingで作ったwinnerはコピーなので、元のプレイヤーを探して点数を加算する
+  const realWinner = game.players.find((player) => player.id === winner.id);
+
+  if (realWinner) {
+    realWinner.score += point;
+    game.roundWinner = realWinner;
+  }
+
   game.roundPoint = point;
   game.roundScored = true;
 }
@@ -229,10 +233,7 @@ app.get("/game/:gameId", (req, res) => {
   const game = games[req.params.gameId];
 
   if (!game) {
-    res.render("index", {
-      error: "対戦データがありません。もう一度始めてください。",
-      difficulties: DIFFICULTIES
-    });
+    res.render("index", { error: "対戦データがありません。もう一度始めてください。", difficulties: DIFFICULTIES });
     return;
   }
 
@@ -312,9 +313,7 @@ app.post("/game/:gameId/reset", (req, res) => {
   game.roundWinner = null;
   game.roundPoint = 0;
   game.status = "player";
-  game.message = resetScore
-    ? "新しい試合を開始しました。あなたの番です。"
-    : "次のラウンドを開始しました。あなたの番です。";
+  game.message = resetScore ? "新しい試合を開始しました。あなたの番です。" : "次のラウンドを開始しました。あなたの番です。";
 
   res.redirect("/game/" + game.id);
 });
@@ -326,6 +325,6 @@ app.post("/game/:gameId/end", (req, res) => {
 });
 
 // サーバー起動
-app.listen(PORT, "127.0.0.1", () => {
+app.listen(PORT, () => {
   console.log("Server running on http://localhost:" + PORT);
 });
