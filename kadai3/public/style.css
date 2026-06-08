@@ -71,6 +71,28 @@ button:disabled {
   margin: 8px 10px;
 }
 
+.scoreBoard {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+
+.scoreBoard div {
+  border: 2px solid #333;
+  border-radius: 8px;
+  min-width: 160px;
+  padding: 10px 14px;
+}
+
+.scoreBoard span {
+  display: block;
+  font-size: 24px;
+  font-weight: bold;
+  margin-top: 4px;
+}
+
 .players {
   display: flex;
   justify-content: center;
@@ -98,6 +120,11 @@ button:disabled {
   margin: 10px 0;
   letter-spacing: 4px;
   min-height: 44px;
+}
+
+.score {
+  font-size: 20px;
+  font-weight: bold;
 }
 
 .result {

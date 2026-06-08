@@ -10,7 +10,17 @@
     <h1>CPU対戦チンチロ</h1>
 
     <p class="message"><%= game.message %></p>
+    <p class="status">第<%= game.roundNumber %>ラウンド / <%= winningScore %>ポイント先取</p>
     <p>あなた：<strong><%= me.name %></strong></p>
+
+    <div class="scoreBoard">
+      <% for (const player of game.players) { %>
+        <div>
+          <strong><%= player.name %></strong>
+          <span><%= player.score %> pt</span>
+        </div>
+      <% } %>
+    </div>
 
     <form class="rollForm" data-target="player" action="/game/<%= game.id %>/roll" method="post">
       <% if (me.result && (me.result.hasRole || me.rollCount >= maxRolls)) { %>
@@ -27,13 +37,18 @@
     <% } %>
 
     <form action="/game/<%= game.id %>/reset" method="post">
-      <input type="submit" value="もう一回">
+      <% if (game.status === 'matchFinished') { %>
+        <input type="submit" value="新しい試合">
+      <% } else { %>
+        <input type="submit" value="次のラウンド">
+      <% } %>
     </form>
 
     <div class="players">
       <% for (const player of game.players) { %>
         <div class="playerCard" data-player="<%= player.id %>">
           <h3><%= player.name %><%= player.isCpu ? '' : '（自分）' %></h3>
+          <div class="score"><%= player.score %> pt</div>
           <div class="dice"><%= player.dice ? player.dice.join(' ') : '- - -' %></div>
           <div class="result"><%= player.result ? player.result.name : '結果待ち' %></div>
           <div class="status">振った回数：<%= player.rollCount %>/<%= maxRolls %>回</div>
@@ -46,9 +61,14 @@
       <% } %>
     </div>
 
-    <% if (game.status === 'finished') { %>
+    <% if (game.status === 'finished' || game.status === 'matchFinished') { %>
       <section class="ranking">
         <h2>結果</h2>
+        <% if (game.roundWinner) { %>
+          <p><%= game.roundWinner.name %> がこのラウンドで <%= game.roundPoint %> ポイント獲得</p>
+        <% } else { %>
+          <p>このラウンドは引き分け</p>
+        <% } %>
         <ol>
           <% for (const player of ranking) { %>
             <li><%= player.place %>位：<%= player.name %>　<%= player.dice.join(' ') %>　<%= player.result.name %>（<%= player.rollCount %>回）</li>
