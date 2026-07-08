@@ -7,7 +7,7 @@ app.use(express.urlencoded({ extended: true }));
 
 const PORT = process.env.PORT || 8080; // ポート番号8080
 const MAX_ROLLS = 3; // 振り直し回数
-const WIN_SCORE = 10; // 先に取ったら勝ち
+const WIN_SCORE = 10; // 勝ちポイント数
 const DIFFICULTIES = {
   strong: { name: "強い", min: 4, max: 6 },
   normal: { name: "普通", min: 1, max: 6 },
@@ -16,23 +16,24 @@ const DIFFICULTIES = {
 
 let games = {}; // 作成されたCPU対戦の情報を保存する
 
+//プレイヤー or CPUのデータ
 function createPlayer(id, name, isCpu, difficulty) {
   return {
-    id: id,
-    name: name,
-    isCpu: isCpu,
-    difficulty: difficulty || "normal",
-    score: 0,
-    dice: null,
-    result: null,
-    rollCount: 0
+    id: id,                                //プレイヤーの区別
+    name: name,                            //画面表示名
+    isCpu: isCpu,                          //cpuか判断
+    difficulty: difficulty || "normal",    //cpuの強さ
+    score: 0,                              //ポイント
+    dice: null,                            //出目
+    result: null,                          //結果
+    rollCount: 0                           //振った回数
   };
 }
-
+//サイコロ
 function rollDice() {
   return rollDiceInRange(1, 6);
 }
-
+//サイコロ*3
 function rollDiceInRange(min, max) {
   return [
     randomNumber(min, max),
@@ -40,7 +41,7 @@ function rollDiceInRange(min, max) {
     randomNumber(min, max)
   ];
 }
-
+//cpuに対応したサイコロ
 function randomNumber(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -76,7 +77,7 @@ function isFinished(player) {
   return player.result && (player.result.hasRole || player.rollCount >= MAX_ROLLS);
 }
 
-// 1回サイコロを振る
+// サイコロ
 function rollOnce(player) {
   if (player.isCpu) {
     const difficulty = DIFFICULTIES[player.difficulty] || DIFFICULTIES.normal;
